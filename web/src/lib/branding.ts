@@ -1,4 +1,4 @@
-import type { Branding } from "./capabilities";
+import type { Branding, WorkingVerbsConfig } from "./capabilities";
 import { useServerInfo } from "./CapabilitiesContext";
 
 export const DEFAULT_APP_NAME = "Omnigent";
@@ -9,6 +9,7 @@ const EMPTY_BRANDING: Branding = {
   heading: null,
   logos: { main: null, loading: null, favicon: null },
   powered_by: true,
+  working_verbs: null,
 };
 
 /** Current operator branding, or all-null while loading / when unset. */
@@ -38,4 +39,20 @@ export function usePoweredBy(): boolean {
   const info = useServerInfo();
   const branding = info !== "loading" ? info.branding : null;
   return branding != null && branding.powered_by;
+}
+
+/** Resolve the working-indicator verb pool for a branding block. */
+export function resolveWorkingVerbs(
+  branding: Branding | null,
+  builtins: readonly string[],
+): readonly string[] {
+  const config: WorkingVerbsConfig | null = branding?.working_verbs ?? null;
+  if (!config || config.verbs.length === 0) return builtins;
+  if (config.mode === "append") return [...builtins, ...config.verbs];
+  return [...config.verbs];
+}
+
+/** Working-indicator verbs for the current deployment (builtins when unset). */
+export function useWorkingVerbs(builtins: readonly string[]): readonly string[] {
+  return resolveWorkingVerbs(useBranding(), builtins);
 }

@@ -35,6 +35,7 @@ function serverInfo(path: string): ServerInfo {
       heading: "Build with Acme",
       logos: { main: path, loading: null, favicon: null },
       powered_by: true,
+      working_verbs: null,
     },
   } as ServerInfo;
 }

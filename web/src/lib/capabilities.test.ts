@@ -267,6 +267,7 @@ describe("resolveServerInfo branding", () => {
       heading: "",
       logos: { main: "/logo/main", loading: "/logo/loading", favicon: "/logo/favicon" },
       powered_by: false,
+      working_verbs: null,
     });
   });
 
@@ -277,6 +278,43 @@ describe("resolveServerInfo branding", () => {
     vi.resetModules();
     const malformed = await probe({ branding: "Acme" });
     expect(malformed.branding).toBeNull();
+  });
+
+  it("parses working verbs with replace mode", async () => {
+    const parsed = await probe({
+      branding: {
+        app_name: "Acme",
+        working_verbs: { mode: "replace", verbs: ["Crunching", "Wiring it up"] },
+      },
+    });
+    expect(parsed.branding?.working_verbs).toEqual({
+      mode: "replace",
+      verbs: ["Crunching", "Wiring it up"],
+    });
+  });
+
+  it("parses working verbs with append mode and drops invalid entries", async () => {
+    const parsed = await probe({
+      branding: {
+        app_name: "Acme",
+        working_verbs: { mode: "append", verbs: ["  Wiring it up  ", "", 42, "x".repeat(81)] },
+      },
+    });
+    expect(parsed.branding?.working_verbs).toEqual({
+      mode: "append",
+      verbs: ["Wiring it up"],
+    });
+  });
+
+  it("treats a bare working-verbs list as replace and empty as unset", async () => {
+    const bare = await probe({
+      branding: { app_name: "Acme", working_verbs: ["Crunching"] },
+    });
+    expect(bare.branding?.working_verbs).toEqual({ mode: "replace", verbs: ["Crunching"] });
+
+    vi.resetModules();
+    const empty = await probe({ branding: { app_name: "Acme", working_verbs: [] } });
+    expect(empty.branding?.working_verbs).toBeNull();
   });
 });
 

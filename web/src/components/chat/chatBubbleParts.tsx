@@ -77,6 +77,7 @@ import {
 import { useStickToBottomContext } from "use-stick-to-bottom";
 import { isSessionScopedDecision, showsRoutingDecisionChip } from "@/lib/routingDecision";
 import { useWorkingLabelTick } from "@/hooks/useWorkingLabelTick";
+import { useWorkingVerbs } from "@/lib/branding";
 import { useForkDialog } from "@/shell/ForkDialogContext";
 import { DisabledActionTooltip } from "@/components/DisabledActionTooltip";
 import { InlineImage, SessionImage } from "@/components/SessionImage";
@@ -414,10 +415,14 @@ function useAgentTurnActive(): boolean {
 
 /**
  * The label shown next to the working shimmer. When the agent is parked on a
- * dialog (`blockedOn`) it says so; otherwise it rotates through
- * `WORKING_MESSAGES` by wall-clock `tick`.
+ * dialog (`blockedOn`) it says so; otherwise it rotates through `verbs`
+ * (defaults to `WORKING_MESSAGES`) by wall-clock `tick`.
  */
-export function workingIndicatorLabel(tick = 0, blockedOn: string | null = null): string {
+export function workingIndicatorLabel(
+  tick = 0,
+  blockedOn: string | null = null,
+  verbs: readonly string[] = WORKING_MESSAGES,
+): string {
   if (blockedOn) {
     // A "dialog open" block lives only in the terminal tab, so point the user
     // there to respond rather than leaving the session looking hung.
@@ -426,7 +431,8 @@ export function workingIndicatorLabel(tick = 0, blockedOn: string | null = null)
     }
     return `Blocked on: ${blockedOn}`;
   }
-  return WORKING_MESSAGES[tick % WORKING_MESSAGES.length]!;
+  if (verbs.length === 0) return WORKING_MESSAGES[0]!;
+  return verbs[tick % verbs.length]!;
 }
 
 export function WorkingIndicator() {
@@ -441,11 +447,12 @@ export function WorkingIndicator() {
     ? computeIsTurnActive(scopedState.sessionStatus, scopedState.status === "streaming")
     : rootAgentWorking;
   const tick = useWorkingLabelTick();
+  const verbs = useWorkingVerbs(WORKING_MESSAGES);
   // Once the turn ends but background shells outlive it, BackgroundTaskPill owns
   // the state and the shimmer stays off (it would misread as the agent still
   // thinking). While the turn is active the shimmer shows, with the pill beside it.
   if (isBackgroundTasksOnly(bgCount, blockedOn, agentWorking)) return null;
-  const label = workingIndicatorLabel(tick, blockedOn);
+  const label = workingIndicatorLabel(tick, blockedOn, verbs);
   return (
     <>
       {/* Sole aria-live region for the working state. A stable "Working…" (not

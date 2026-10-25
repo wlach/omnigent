@@ -376,6 +376,9 @@ def _branding_powered_by(section: Mapping[str, Any]) -> bool:
 
 
 LOGO_VARIANTS: tuple[str, ...] = ("main", "loading", "favicon")
+WORKING_VERB_MODES: tuple[str, ...] = ("replace", "append")
+WORKING_VERBS_MAX_COUNT = 32
+WORKING_VERBS_MAX_LENGTH = 80
 BRANDING_ASSETS_DIRNAME = "branding-assets"
 BRANDING_ASSET_MAX_BYTES = 5 * 1024 * 1024
 BRANDING_ASSET_MAX_DIMENSION = 4096
@@ -406,9 +409,16 @@ class BrandingSnapshot:
     logo_assets: Mapping[str, BrandingAsset]
     powered_by: bool
     server_name: str | None = None
+    working_verbs: Mapping[str, Any] | None = None
 
     def config(self) -> dict[str, Any]:
         """Return the public branding block surfaced by ``GET /v1/info``."""
+        working_verbs = None
+        if self.working_verbs is not None:
+            working_verbs = {
+                "mode": self.working_verbs["mode"],
+                "verbs": list(self.working_verbs["verbs"]),
+            }
         return {
             "app_name": self.app_name,
             "heading": self.heading,
@@ -417,6 +427,7 @@ class BrandingSnapshot:
                 for variant in LOGO_VARIANTS
             },
             "powered_by": self.powered_by,
+            "working_verbs": working_verbs,
         }
 
     def logo_asset(self, variant: str = "main") -> BrandingAsset | None:
@@ -741,6 +752,37 @@ def _resolve_branding_asset(
     return asset
 
 
+def _branding_working_verbs(section: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Parse ``branding.working_verbs`` into a mode + verbs block, else None."""
+    raw = section.get("working_verbs")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        candidates, mode = raw, "replace"
+    elif isinstance(raw, dict):
+        mode_raw = raw.get("mode", "replace")
+        mode = mode_raw if mode_raw in WORKING_VERB_MODES else "replace"
+        candidates = raw.get("verbs")
+        if not isinstance(candidates, list):
+            return None
+    else:
+        return None
+    verbs: list[str] = []
+    for candidate in candidates:
+        if not isinstance(candidate, str):
+            continue
+        text = candidate.strip()
+        if not text or len(text) > WORKING_VERBS_MAX_LENGTH:
+            continue
+        if text not in verbs:
+            verbs.append(text)
+        if len(verbs) >= WORKING_VERBS_MAX_COUNT:
+            break
+    if not verbs:
+        return None
+    return MappingProxyType({"mode": mode, "verbs": tuple(verbs)})
+
+
 def _branding_logo_names(section: Mapping[str, Any]) -> dict[str, str]:
     """Map logo variant to filename from ``branding.logo`` (a bare string sets ``main``)."""
     raw = section.get("logo")
@@ -778,6 +820,7 @@ def load_branding_snapshot(config: Mapping[str, Any] | None = None) -> BrandingS
         logo_assets=MappingProxyType(logo_assets),
         powered_by=_branding_powered_by(section),
         server_name=_branding_str(section, "server_name"),
+        working_verbs=_branding_working_verbs(section),
     )
 
 

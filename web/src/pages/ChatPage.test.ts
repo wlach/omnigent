@@ -1143,6 +1143,18 @@ describe("workingIndicatorLabel", () => {
     expect(workingIndicatorLabel(WORKING_MESSAGES.length)).toBe("Working…");
     expect(workingIndicatorLabel(WORKING_MESSAGES.length + 1)).toBe(WORKING_MESSAGES[1]);
   });
+
+  it("rotates through a branded pool when provided", () => {
+    // Operator verbs replace the builtins; the tick still wraps modulo the pool.
+    const verbs = ["Crunching", "Wiring it up"];
+    expect(workingIndicatorLabel(0, null, verbs)).toBe("Crunching");
+    expect(workingIndicatorLabel(1, null, verbs)).toBe("Wiring it up");
+    expect(workingIndicatorLabel(2, null, verbs)).toBe("Crunching");
+  });
+
+  it("falls back to builtins for an empty branded pool", () => {
+    expect(workingIndicatorLabel(0, null, [])).toBe("Working…");
+  });
 });
 
 // ── isBackgroundTasksOnly ───────────────────────────────────────────────────

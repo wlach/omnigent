@@ -676,3 +676,62 @@ def test_filesystem_attachment_policy_reads_the_config_file(
     monkeypatch.setenv("OMNIGENT_CONFIG", str(config))
 
     assert filesystem_attachment_policy().all_types
+
+
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        # Omitted keeps the built-in verbs.
+        pytest.param({}, None, id="no-branding-key"),
+        pytest.param({"branding": {}}, None, id="empty-section"),
+        # Replace swaps the pool.
+        pytest.param(
+            {
+                "branding": {
+                    "working_verbs": {
+                        "mode": "replace",
+                        "verbs": ["Crunching", "Wiring it up"],
+                    }
+                }
+            },
+            {"mode": "replace", "verbs": ["Crunching", "Wiring it up"]},
+            id="replace",
+        ),
+        # Append extends the built-ins.
+        pytest.param(
+            {"branding": {"working_verbs": {"mode": "append", "verbs": ["Wiring it up"]}}},
+            {"mode": "append", "verbs": ["Wiring it up"]},
+            id="append",
+        ),
+        # A bare list means replace.
+        pytest.param(
+            {"branding": {"working_verbs": ["Crunching"]}},
+            {"mode": "replace", "verbs": ["Crunching"]},
+            id="bare-list",
+        ),
+    ],
+)
+def test_branding_working_verbs_shapes(config: object, expected: object) -> None:
+    assert load_branding_snapshot(config).config()["working_verbs"] == expected
+
+
+@pytest.mark.parametrize("raw", [None, "Crunching", 42, {"mode": "replace"}, {"verbs": []}])
+def test_branding_working_verbs_invalid_is_none(raw: object) -> None:
+    assert (
+        load_branding_snapshot({"branding": {"working_verbs": raw}}).config()["working_verbs"]
+        is None
+    )
+
+
+def test_branding_working_verbs_strips_filters_and_dedupes() -> None:
+    snapshot = load_branding_snapshot(
+        {
+            "branding": {
+                "working_verbs": {
+                    "mode": "bogus",
+                    "verbs": ["  Crunching  ", "", "   ", 42, "Crunching", "x" * 81],
+                }
+            }
+        }
+    )
+    assert snapshot.config()["working_verbs"] == {"mode": "replace", "verbs": ["Crunching"]}

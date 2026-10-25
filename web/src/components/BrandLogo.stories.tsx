@@ -56,6 +56,7 @@ export const CustomOperatorLogo: Story = {
             heading: "What should we build?",
             logos: { main: logoDataUri, loading: logoDataUri, favicon: null },
             powered_by: true,
+            working_verbs: null,
           },
         }}
       >

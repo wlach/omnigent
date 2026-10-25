@@ -36,6 +36,7 @@ describe("createBootServerInfo", () => {
         heading: "Build with Acme",
         logos: { main: "/logo", loading: null, favicon: null },
         powered_by: true,
+        working_verbs: null,
       },
     } satisfies ServerInfo;
     probe.resolve(branded);

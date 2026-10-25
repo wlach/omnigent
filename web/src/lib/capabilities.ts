@@ -45,6 +45,11 @@ export interface SmartRoutingSources {
   oss: boolean;
 }
 
+export interface WorkingVerbsConfig {
+  mode: "replace" | "append";
+  verbs: string[];
+}
+
 export interface Branding {
   app_name: string | null;
   heading: string | null;
@@ -54,6 +59,7 @@ export interface Branding {
     favicon: string | null;
   };
   powered_by: boolean;
+  working_verbs: WorkingVerbsConfig | null;
 }
 
 /** Release features understood by this frontend build. */
@@ -260,6 +266,31 @@ function parseFilesystemAttachments(raw: unknown): FilesystemAttachmentsInfo | n
   };
 }
 
+function parseWorkingVerbs(raw: unknown): WorkingVerbsConfig | null {
+  if (raw === null || raw === undefined) return null;
+  const verbsFrom = (candidates: unknown): string[] | null => {
+    if (!Array.isArray(candidates)) return null;
+    const verbs: string[] = [];
+    for (const candidate of candidates) {
+      if (typeof candidate !== "string") continue;
+      const text = candidate.trim();
+      if (text === "" || text.length > 80 || verbs.includes(text)) continue;
+      verbs.push(text);
+      if (verbs.length >= 32) break;
+    }
+    return verbs.length > 0 ? verbs : null;
+  };
+  if (Array.isArray(raw)) {
+    const verbs = verbsFrom(raw);
+    return verbs ? { mode: "replace", verbs } : null;
+  }
+  if (typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const mode = value.mode === "append" ? "append" : "replace";
+  const verbs = verbsFrom(value.verbs);
+  return verbs ? { mode, verbs } : null;
+}
+
 function parseBranding(raw: unknown): Branding | null {
   if (raw === null || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -274,11 +305,13 @@ function parseBranding(raw: unknown): Branding | null {
     loading: nonEmpty(rawLogos.loading),
     favicon: nonEmpty(rawLogos.favicon),
   };
+  const working_verbs = parseWorkingVerbs(value.working_verbs);
   const branding = {
     app_name: nonEmpty(value.app_name),
     heading: typeof value.heading === "string" ? value.heading : null,
     logos,
     powered_by: value.powered_by !== false,
+    working_verbs,
   };
   const isEmpty =
     branding.app_name === null &&
@@ -286,6 +319,7 @@ function parseBranding(raw: unknown): Branding | null {
     logos.main === null &&
     logos.loading === null &&
     logos.favicon === null &&
+    working_verbs === null &&
     branding.powered_by;
   return isEmpty ? null : branding;
 }
